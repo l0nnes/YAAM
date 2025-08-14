@@ -32,22 +32,26 @@ public class ServiceAutostartProvider : IAutostartProvider
                     var imagePath = serviceKey.GetValue("ImagePath")?.ToString() ?? string.Empty;
 
                     if (startMode != 2 && startMode != 4) continue; // 2 = Auto, 4 = Disabled
-                    
+
                     var parsedCommand = ParseCommandLine(imagePath);
                     if (SignatureChecker.IsMicrosoftSigned(parsedCommand.ExecutablePath)) continue;
 
                     items.Add(new AutostartItem
                     {
-                        Name = service.DisplayName, 
+                        Name = service.DisplayName,
                         ExecutablePath = parsedCommand.ExecutablePath,
                         Arguments = parsedCommand.Arguments,
                         Type = AutostartType.ThirdPartyService,
                         IsEnabled = startMode == 2,
-                        Location = service.ServiceName 
+                        Location = service.ServiceName
                     });
                 }
-                catch (Exception) { /* Ignore services we can't access */ }
+                catch (Exception)
+                {
+                    /* Ignore services we can't access */
+                }
             }
+
             return items;
         });
     }
@@ -60,16 +64,16 @@ public class ServiceAutostartProvider : IAutostartProvider
                 throw new ArgumentException("Service system name (Location) cannot be empty.", nameof(item.Location));
             if (string.IsNullOrWhiteSpace(item.ExecutablePath))
                 throw new ArgumentException("Executable path cannot be empty.", nameof(item.ExecutablePath));
-            
+
             ServiceManager.CreateService(item);
 
             if (!item.IsEnabled)
             {
-                SetServiceStartValue(item.Location, 4); // 4 = Disabled
+                SetServiceStartValue(item, false);
             }
         });
     }
-    
+
     public Task ModifyAutostartItem(AutostartItem originalItem, AutostartItem modifiedItem)
     {
         return Task.Run(() =>
@@ -88,9 +92,9 @@ public class ServiceAutostartProvider : IAutostartProvider
 
     public Task DeleteAutostartItem(AutostartItem item) => Task.Run(() => ServiceManager.DeleteService(item.Location));
 
-    public Task EnableAutostartItem(AutostartItem item) => Task.Run(() => SetServiceStartValue(item.Location, 2));
+    public Task EnableAutostartItem(AutostartItem item) => Task.Run(() => SetServiceStartValue(item, true));
 
-    public Task DisableAutostartItem(AutostartItem item) => Task.Run(() => SetServiceStartValue(item.Location, 4));
+    public Task DisableAutostartItem(AutostartItem item) => Task.Run(() => SetServiceStartValue(item, false));
 
     private static (string ExecutablePath, string? Arguments) ParseCommandLine(string commandLine)
     {
@@ -98,27 +102,27 @@ public class ServiceAutostartProvider : IAutostartProvider
 
         var path = CommandLineHelper.GetFileName(commandLine);
         string? args = null;
-        
+
         var pathInCmd = commandLine.Contains($"\"{path}\"") ? $"\"{path}\"" : path;
         var pathEndIndex = commandLine.IndexOf(pathInCmd, StringComparison.OrdinalIgnoreCase) + pathInCmd.Length;
-        
-        if (pathEndIndex < commandLine.Length) 
+
+        if (pathEndIndex < commandLine.Length)
         {
             args = commandLine[pathEndIndex..].Trim();
         }
-        
+
         return (path, args);
     }
 
-    private static void SetServiceStartValue(string serviceName, int startValue)
+    private static void SetServiceStartValue(AutostartItem autostartItem, bool enabled)
     {
-        var keyPath = @$"SYSTEM\CurrentControlSet\Services\{serviceName}";
+        var keyPath = @$"SYSTEM\CurrentControlSet\Services\{autostartItem.Location}";
         using var key = Registry.LocalMachine.OpenSubKey(keyPath, true);
         if (key == null)
         {
-            throw new InvalidOperationException($"Service registry key not found for '{serviceName}'");
+            throw new InvalidOperationException($"Service registry key not found for '{autostartItem.Location}'");
         }
 
-        key.SetValue("Start", startValue, RegistryValueKind.DWord);
+        key.SetValue("Start", enabled ? 2 : 4, RegistryValueKind.DWord);
     }
 }

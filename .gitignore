@@ -56,3 +56,4 @@ nunit-*.xml
 # Other
 /.idea/
 /.idea
+/.vs
