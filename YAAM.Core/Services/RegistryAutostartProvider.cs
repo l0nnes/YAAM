@@ -58,7 +58,7 @@ public class RegistryAutostartProvider : IAutostartProvider
 
         return items;
     }
-    
+
     private static (string ExecutablePath, string? Arguments) ParseCommandLine(string commandLine)
     {
         if (string.IsNullOrWhiteSpace(commandLine))
@@ -68,7 +68,7 @@ public class RegistryAutostartProvider : IAutostartProvider
 
         var path = CommandLineHelper.GetFileName(commandLine);
         string? args = null;
-        
+
         var pathInCmd = commandLine.Contains($"\"{path}\"") ? $"\"{path}\"" : path;
         var pathEndIndex = commandLine.IndexOf(pathInCmd, StringComparison.OrdinalIgnoreCase) + pathInCmd.Length;
 
@@ -80,10 +80,10 @@ public class RegistryAutostartProvider : IAutostartProvider
         return (path, args);
     }
 
-    public Task EnableAutostartItem(AutostartItem item) => Task.Run(() => SetItemState(item, EnabledValue));
+    public Task EnableAutostartItem(AutostartItem item) => Task.Run(() => SetItemState(item, true));
 
-    public Task DisableAutostartItem(AutostartItem item) => Task.Run(() => SetItemState(item, DisabledValue));
-    
+    public Task DisableAutostartItem(AutostartItem item) => Task.Run(() => SetItemState(item, false));
+
     public Task CreateAutostartItem(AutostartItem item)
     {
         return Task.Run(() =>
@@ -94,14 +94,15 @@ public class RegistryAutostartProvider : IAutostartProvider
                 throw new ArgumentException("Executable path cannot be empty.", nameof(item.ExecutablePath));
 
             var (hive, runPath) = GetHiveAndPathFromLocation(item.Location);
-            using var runKey = hive.OpenSubKey(runPath, writable: true) 
-                ?? throw new InvalidOperationException($"Registry key not found: {hive.Name}\\{runPath}");
+            using var runKey = hive.OpenSubKey(runPath, writable: true)
+                               ?? throw new InvalidOperationException(
+                                   $"Registry key not found: {hive.Name}\\{runPath}");
 
             var command = BuildCommand(item);
             runKey.SetValue(item.Name, command, RegistryValueKind.String);
         });
     }
-    
+
     public Task ModifyAutostartItem(AutostartItem originalItem, AutostartItem modifiedItem)
     {
         return Task.Run(() =>
@@ -113,8 +114,9 @@ public class RegistryAutostartProvider : IAutostartProvider
 
             var (hive, runPath) = GetHiveAndPathFromLocation(originalItem.Location);
             using var runKey = hive.OpenSubKey(runPath, writable: true)
-                 ?? throw new InvalidOperationException($"Registry key not found: {hive.Name}\\{runPath}");
-            
+                               ?? throw new InvalidOperationException(
+                                   $"Registry key not found: {hive.Name}\\{runPath}");
+
             if (originalItem.Name != modifiedItem.Name)
             {
                 runKey.DeleteValue(originalItem.Name, false);
@@ -124,19 +126,19 @@ public class RegistryAutostartProvider : IAutostartProvider
             runKey.SetValue(modifiedItem.Name, command, RegistryValueKind.String);
         });
     }
-    
+
     public Task DeleteAutostartItem(AutostartItem item)
     {
         return Task.Run(() =>
         {
             var (hive, runPath) = GetHiveAndPathFromLocation(item.Location);
             const string approvedPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
-            
+
             using (var runKey = hive.OpenSubKey(runPath, writable: true))
             {
                 runKey?.DeleteValue(item.Name, false);
             }
-            
+
             using (var approvedKey = hive.OpenSubKey(approvedPath, writable: true))
             {
                 approvedKey?.DeleteValue(item.Name, false);
@@ -144,17 +146,27 @@ public class RegistryAutostartProvider : IAutostartProvider
         });
     }
 
-    private static void SetItemState(AutostartItem item, byte[] value)
+    private static void SetItemState(AutostartItem item, bool enabled)
     {
-        var (hive, _) = GetHiveAndPathFromLocation(item.Location);
-        const string approvedPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+        try
+        {
+            var (hive, _) = GetHiveAndPathFromLocation(item.Location);
+            const string approvedPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
 
-        using var key = hive.OpenSubKey(approvedPath, writable: true) 
-                        ?? throw new InvalidOperationException($"Registry key not found: {hive.Name}\\{approvedPath}");
+            using var key = hive.OpenSubKey(approvedPath, writable: true)
+                            ?? throw new InvalidOperationException(
+                                $"Registry key not found: {hive.Name}\\{approvedPath}");
 
-        key.SetValue(item.Name, value, RegistryValueKind.Binary);
+            key.SetValue(item.Name, enabled ? EnabledValue : DisabledValue, RegistryValueKind.Binary);
+
+            item.IsEnabled = enabled;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to set item state. Item: {item}", ex);
+        }
     }
-    
+
     private static (RegistryKey hive, string path) GetHiveAndPathFromLocation(string location)
     {
         var parts = location.Split('\\');
@@ -165,12 +177,13 @@ public class RegistryAutostartProvider : IAutostartProvider
         {
             "LocalMachine" => Registry.LocalMachine,
             "CurrentUser" => Registry.CurrentUser,
-            _ => throw new ArgumentException($"Invalid location format. Must start with 'LocalMachine' or 'CurrentUser'. Location: {location}")
+            _ => throw new ArgumentException(
+                $"Invalid location format. Must start with 'LocalMachine' or 'CurrentUser'. Location: {location}")
         };
-        
+
         return (hive, path);
     }
-    
+
     private static string BuildCommand(AutostartItem item)
     {
         return $"\"{item.ExecutablePath}\" {item.Arguments}".Trim();

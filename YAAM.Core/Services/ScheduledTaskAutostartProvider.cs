@@ -51,9 +51,9 @@ public class ScheduledTaskAutostartProvider : IAutostartProvider
         });
     }
 
-    public Task EnableAutostartItem(AutostartItem item) => Task.Run(() => SetTaskStateAsync(item.Location, true));
+    public Task EnableAutostartItem(AutostartItem item) => Task.Run(() => SetTaskStateAsync(item, true));
 
-    public Task DisableAutostartItem(AutostartItem item) => Task.Run(() => SetTaskStateAsync(item.Location, false));
+    public Task DisableAutostartItem(AutostartItem item) => Task.Run(() => SetTaskStateAsync(item, false));
 
     public Task CreateAutostartItem(AutostartItem item)
     {
@@ -119,25 +119,19 @@ public class ScheduledTaskAutostartProvider : IAutostartProvider
         });
     }
 
-    private static void SetTaskStateAsync(string taskPath, bool enabled)
+    private static void SetTaskStateAsync(AutostartItem autostartItem, bool enabled)
     {
         var taskService = TaskService.Instance;
-        var task = taskService.GetTask(taskPath);
+        var task = taskService.GetTask(autostartItem.Location);
         if (task != null)
         {
             task.Enabled = enabled;
-            if (enabled)
-            {
-                task.Stop();
-            }
-            else
-            {
-                task.Run();
-            }
+
+            autostartItem.IsEnabled = enabled;
         }
         else
         {
-            throw new InvalidOperationException($"Task not found at path: {taskPath}");
+            throw new InvalidOperationException($"Task not found at path: {autostartItem.Location}");
         }
     }
 }
