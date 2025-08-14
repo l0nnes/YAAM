@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YAAM.Core", "YAAM.Core\YAAM
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YAAM.Test", "YAAM.Test\YAAM.Test.csproj", "{E0611284-D7EA-4F01-B451-F624C1F1BCD4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YAAM.App", "YAAM.App\YAAM.App.csproj", "{D9698A14-5F9D-4198-B3D3-58000F01BA32}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{E0611284-D7EA-4F01-B451-F624C1F1BCD4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E0611284-D7EA-4F01-B451-F624C1F1BCD4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E0611284-D7EA-4F01-B451-F624C1F1BCD4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9698A14-5F9D-4198-B3D3-58000F01BA32}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9698A14-5F9D-4198-B3D3-58000F01BA32}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9698A14-5F9D-4198-B3D3-58000F01BA32}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9698A14-5F9D-4198-B3D3-58000F01BA32}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
